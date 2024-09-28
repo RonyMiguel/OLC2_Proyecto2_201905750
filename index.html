@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OakLang</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <button class="sidebar-btn" id="btn-ejecutar">Ejecutar</button>
+      <button class="sidebar-btn" id="btn-archivo">Archivo</button>
+      <input type="file" id="file-input" style="display: none;">
+      <button class="sidebar-btn" id="btn-reportes">Errores</button>
+      <button class="sidebar-btn" id="btn-simbolos">Simbolos</button>
+    </div>
+    <div class="main-content">
+      <div class="tabs" id="tabs">
+        <!-- Pestaña por defecto -->
+        <div class="tab active" data-tab="0">
+          Archivo en blanco <span class="close-tab">x</span>
+        </div>
+      </div>
+      <div  id="editor" style="height: 65vh; width: 80vw; padding-left: 20px; padding-top: 20px;"></div>
+      <div class="console">
+        <h3>Consola</h3>
+        <div id="console" style="height: 35vh; width: 80vw;"></div>
+      </div>
+    </div>
+  </div>
+  <script  type="module" src="script.js"></script>
+</body>
+</html>
