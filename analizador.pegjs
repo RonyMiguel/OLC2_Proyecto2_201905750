@@ -251,9 +251,9 @@ Entero = [0-9]+ { return crearNodo("nativo", {tipo: "int", valor: parseInt(text(
 
 Decimal = [0-9]+ "." [0-9]+ { return crearNodo("nativo", {tipo: "float", valor: parseFloat(text(), 10)}) }
 
-Cadena = "\"" (!"\"" .)* "\"" { return crearNodo("nativo", {tipo: "string", valor: text()}) }
+Cadena = "\"" texto:([^\"])* "\"" { return crearNodo("nativo", {tipo: "string", valor: texto.join('')}) }
 
-Caracter = "'" ("\\" escape:[nrtvbf\\\'\"] / !"'" .)? "'" { return crearNodo("nativo", {tipo: "char", valor: text()}) }
+Caracter = "'" ("\\" escape:[nrtvbf\\\'\"] / !"'" .)? "'" { return crearNodo("nativo", {tipo: "char", valor: text().replace(/['"]/g, '')}) }
 
 Bool = "true" { return crearNodo("nativo", {tipo: "boolean", valor: true}) }
     / "false" { return crearNodo("nativo", {tipo: "boolean", valor: false}) }

@@ -124,12 +124,14 @@ btn.addEventListener('click', () => {
     const codigoFuente = editor.getValue()
     try {
         const sentencias = parse(codigoFuente)
+        console.log(sentencias);
         const interprete = new CompilerVisitor()
 
         sentencias.forEach(sentencia => {
             try {
                 sentencia.accept(interprete);
             } catch (error) {
+                /*
                 if (error instanceof ReturnException) {
                     interprete.errores.push({desc: "No se esperaba un return", linea: error.linea, columna: error.columna, tipo: "Semántico"})
                 }else if (error instanceof BreakException) {
@@ -137,10 +139,12 @@ btn.addEventListener('click', () => {
                 }else if (error instanceof ContinueException) {
                     interprete.errores.push({desc: "No se esperaba un continue", linea: error.linea, columna: error.columna, tipo: "Semántico"})
                 }
+                    */
                 console.log(error);
             }
         });
         consola.setValue(interprete.code.toString())
+        /*
         errores = interprete.errores
         
         function sonIguales(obj1, obj2) {
@@ -156,6 +160,7 @@ btn.addEventListener('click', () => {
 
         const unicos = obtenerObjetosUnicos(interprete.tablaSimbolos);
         tablaSimbolos = unicos;
+        */
     } catch (error) {
         console.log(error);
         consola.setValue(error.message + ' at line ' + error.location.start.line + ' column ' + error.location.start.column)
