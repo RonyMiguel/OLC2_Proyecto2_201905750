@@ -58,6 +58,34 @@ export class CompilerVisitor extends BaseVisitor {
                 this.code.rem(r.T0, r.T0, r.T1);
                 this.code.push(r.T0);
                 break;
+            case '>':
+                this.code.slt(r.T0, r.T1, r.T0);
+                this.code.push(r.T0);
+                break;
+            case '<':
+                this.code.slt(r.T0, r.T0, r.T1);
+                this.code.push(r.T0);
+                break;
+            case '>=':
+                this.code.slt(r.T0, r.T0, r.T1);
+                this.code.xori(r.T0, r.T0, 1);
+                this.code.push(r.T0);
+                break
+            case '<=':
+                this.code.slt(r.T0, r.T1, r.T0);
+                this.code.xori(r.T0, r.T0, 1);
+                this.code.push(r.T0);
+                break;
+            case '==':
+                this.code.xor(r.T0, r.T0, r.T1);
+                this.code.sltiu(r.T0, r.T0, 1);
+                this.code.push(r.T0);
+                break;
+            case '!=':
+                this.code.xor(r.T0, r.T0, r.T1);
+                this.code.sltu(r.T0, r.ZERO, r.T0);
+                this.code.push(r.T0);
+                break;
         }
         this.code.pushObject({ type: 'int', length: 4 });
     }
@@ -76,6 +104,11 @@ export class CompilerVisitor extends BaseVisitor {
                 this.code.sub(r.T0, r.T1, r.T0);
                 this.code.push(r.T0);
                 this.code.pushObject({ type: 'int', length: 4 });
+                break;
+            case '!':
+                this.code.xori(r.T0, r.T0, 1);
+                this.code.push(r.T0);
+                this.code.pushObject({ type: 'boolean', length: 4 });
                 break;
         }
     }
@@ -100,7 +133,7 @@ export class CompilerVisitor extends BaseVisitor {
             'int': () => this.code.printInt(),
             'string': () => this.code.printString(),
             'char': () => this.code.printChar(),
-            'boolean': () => this.code.printString()
+            'boolean': () => this.code.printInt()
         }
 
         tiposPrint[object.type]();

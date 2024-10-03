@@ -72,6 +72,26 @@ export class Generador {
         this.instrucciones.push(new Instruccion('rem', rd, rs1, rs2))
     }
 
+    slt(rd, rs1, rs2) {
+        this.instrucciones.push(new Instruccion('slt', rd, rs1, rs2))
+    }
+
+    sltu(rd, rs1, rs2) {
+        this.instrucciones.push(new Instruccion('sltu', rd, rs1, rs2))
+    }
+
+    sltiu(rd, rs1, inmediato) {
+        this.instrucciones.push(new Instruccion('sltiu', rd, rs1, inmediato))
+    }
+
+    xor(rd, rs1, rs2) {
+        this.instrucciones.push(new Instruccion('xor', rd, rs1, rs2))
+    }
+
+    xori(rd, rs1, inmediato) {
+        this.instrucciones.push(new Instruccion('xori', rd, rs1, inmediato))
+    }
+
     ecall(){
         this.instrucciones.push(new Instruccion('ecall'))
     }
@@ -203,9 +223,11 @@ export class Generador {
             
             case 'boolean':
             this.pop(rd);
+            /*
             console.log(object)
             this.pushConstant({ type: 'string', valor: object.valor ? "true" : "false" });
             this.pop(rd)
+            */
             break;
 
             default:
