@@ -31,63 +31,132 @@ export class CompilerVisitor extends BaseVisitor {
      */
     visitOperacionBinaria(node){
         this.code.comment(`Operacion: ${node.op}`);
+
+        if (node.op === '&&') {
+            node.izq.accept(this);
+            this.code.popObject(r.T0);
+
+            const labelFalse = this.code.getLabel();
+            const labelEnd = this.code.getLabel();
+
+            this.code.beq(r.T0, r.ZERO, labelFalse);
+            node.der.accept(this);
+            this.code.popObject(r.T0);
+            this.code.beq(r.T0, r.ZERO, labelFalse);
+
+            this.code.li(r.T0, 1);
+            this.code.push(r.T0);
+            this.code.j(labelEnd);
+            this.code.addLabel(labelFalse);
+            this.code.li(r.T0, 0);
+            this.code.push(r.T0);
+
+            this.code.addLabel(labelEnd);
+            this.code.pushObject({ type: 'boolean', length: 4 });
+            return
+        }
+
+        if (node.op === '||'){
+            node.izq.accept(this);
+            this.code.popObject(r.T0);
+
+            const labelTrue = this.code.getLabel();
+            const labelEnd = this.code.getLabel();
+
+            this.code.bne(r.T0, r.ZERO, labelTrue);
+            node.der.accept(this);
+            this.code.popObject(r.T0);
+            this.code.bne(r.T0, r.ZERO, labelTrue);
+
+            this.code.li(r.T0, 0);
+            this.code.push(r.T0);
+
+            this.code.j(labelEnd);
+            this.code.addLabel(labelTrue);
+            this.code.li(r.T0, 1);
+            this.code.push(r.T0);
+
+            this.code.addLabel(labelEnd);
+            this.code.pushObject({ type: 'boolean', length: 4 });
+            return
+        }
+
         node.izq.accept(this);
         node.der.accept(this);
 
-        this.code.popObject(r.T1);
-        this.code.popObject(r.T0);
+        const der = this.code.popObject(r.T1);
+        const izq = this.code.popObject(r.T0);
+
+        if (izq.type === 'string' || der.type === 'string') {
+            this.code.add(r.A0, r.ZERO, r.T0);
+            this.code.add(r.A1, r.ZERO, r.T1);
+            this.code.callBuiltin('concatString');
+            this.code.pushObject({ type: 'string', length: 4});
+            return;
+        }
 
         switch(node.op){
             case '+':
                 this.code.add(r.T0, r.T0, r.T1);
                 this.code.push(r.T0);
+                this.code.pushObject({ type: 'int', length: 4 });
                 break;
             case '-':
                 this.code.sub(r.T0, r.T0, r.T1);
                 this.code.push(r.T0);
+                this.code.pushObject({ type: 'int', length: 4 });
                 break;
             case '*':
                 this.code.mul(r.T0, r.T0, r.T1);
                 this.code.push(r.T0);
+                this.code.pushObject({ type: 'int', length: 4 });
                 break;
             case '/':
                 this.code.div(r.T0, r.T0, r.T1);
                 this.code.push(r.T0);
+                this.code.pushObject({ type: 'int', length: 4 });
                 break;
             case '%':
                 this.code.rem(r.T0, r.T0, r.T1);
                 this.code.push(r.T0);
+                this.code.pushObject({ type: 'int', length: 4 });
                 break;
             case '>':
                 this.code.slt(r.T0, r.T1, r.T0);
                 this.code.push(r.T0);
+                this.code.pushObject({ type: 'boolean', length: 4 });
                 break;
             case '<':
                 this.code.slt(r.T0, r.T0, r.T1);
                 this.code.push(r.T0);
+                this.code.pushObject({ type: 'boolean', length: 4 });
                 break;
             case '>=':
                 this.code.slt(r.T0, r.T0, r.T1);
                 this.code.xori(r.T0, r.T0, 1);
                 this.code.push(r.T0);
+                this.code.pushObject({ type: 'boolean', length: 4 });
                 break
             case '<=':
                 this.code.slt(r.T0, r.T1, r.T0);
                 this.code.xori(r.T0, r.T0, 1);
                 this.code.push(r.T0);
+                this.code.pushObject({ type: 'boolean', length: 4 });
                 break;
             case '==':
                 this.code.xor(r.T0, r.T0, r.T1);
                 this.code.sltiu(r.T0, r.T0, 1);
                 this.code.push(r.T0);
+                this.code.pushObject({ type: 'boolean', length: 4 });
                 break;
             case '!=':
                 this.code.xor(r.T0, r.T0, r.T1);
                 this.code.sltu(r.T0, r.ZERO, r.T0);
                 this.code.push(r.T0);
+                this.code.pushObject({ type: 'boolean', length: 4 });
                 break;
         }
-        this.code.pushObject({ type: 'int', length: 4 });
+        
     }
 
     /**
@@ -166,6 +235,7 @@ export class CompilerVisitor extends BaseVisitor {
 
         variableObject.type = valueObject.type;
 
+        // Se vuelve a insertar a la pila porque la asignación devuelve su valor como una expresión
         this.code.push(r.T0);
         this.code.pushObject(valueObject);
 
@@ -205,5 +275,41 @@ export class CompilerVisitor extends BaseVisitor {
         }
 
         this.code.comment('Fin de Bloque');
+    }
+
+    /**
+     * @type {BaseVisitor['visitIf']}
+     */
+    visitIf(node){
+        this.code.comment('Inicio de If');
+
+        this.code.comment('Condición');
+        node.cond.accept(this);
+        this.code.popObject(r.T0);
+        this.code.comment('Fin Condición');
+
+        const hasElse = !!node.stmtFalse
+        if (hasElse) {
+            const elseLabel = this.code.getLabel();
+            const endIfLabel = this.code.getLabel();
+
+            this.code.beq(r.T0, r.ZERO, elseLabel);
+            this.code.comment('If True');
+            node.stmtTrue.accept(this);
+            this.code.j(endIfLabel);
+            this.code.comment('If False');
+            this.code.addLabel(elseLabel);
+            node.stmtFalse.accept(this);
+            this.code.addLabel(endIfLabel);
+        } else{
+            const endIfLabel = this.code.getLabel();
+
+            this.code.beq(r.T0, r.ZERO, endIfLabel);
+            this.code.comment('If True');
+            node.stmtTrue.accept(this);
+            this.code.addLabel(endIfLabel);
+        }
+
+        this.code.comment('Fin de If');
     }
 }

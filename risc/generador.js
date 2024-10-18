@@ -1,5 +1,6 @@
+import { builtins } from "./builtins.js";
 import { registers as r } from "./constantes.js";
-import { stringTo32BitsArray } from "./utils.js";
+import { stringTo1ByteArray, stringTo32BitsArray } from "./utils.js";
 
 class Instruccion {
 
@@ -24,6 +25,18 @@ export class Generador {
         this.instrucciones = []
         this.objectStack = []
         this.depth = 0
+        this._usedBuiltins = new Set() // '_' representa una variable privada
+        this._labelCounter = 0
+    }
+
+    getLabel(){
+        return `L${this._labelCounter++}`
+    }
+
+    addLabel(label){
+        label = label || this.getLabel()
+        this.instrucciones.push(new Instruccion(`${label}:`))
+        return label
     }
 
     add(rd, rs1, rs2){
@@ -50,8 +63,32 @@ export class Generador {
         this.instrucciones.push(new Instruccion('sw', rs1, `${inmediato}(${rs2})`))
     }
 
+    sb(rs1, rs2, inmediato = 0){
+        this.instrucciones.push(new Instruccion('sb', rs1, `${inmediato}(${rs2})`))
+    }
+
     lw(rd, rs1, inmediato = 0){
         this.instrucciones.push(new Instruccion('lw', rd, `${inmediato}(${rs1})`))
+    }
+
+    lb(rd, rs1, inmediato = 0){
+        this.instrucciones.push(new Instruccion('lb', rd, `${inmediato}(${rs1})`))
+    }
+
+    beq(rs1, rs2, label){
+        this.instrucciones.push(new Instruccion('beq', rs1, rs2, label))
+    }
+
+    bne(rs1, rs2, label){
+        this.instrucciones.push(new Instruccion('bne', rs1, rs2, label))
+    }
+
+    blt(rs1, rs2, label){
+        this.instrucciones.push(new Instruccion('blt', rs1, rs2, label))
+    }
+
+    bge(rs1, rs2, label){
+        this.instrucciones.push(new Instruccion('bge', rs1, rs2, label))
     }
 
     li(rd, inmediato){
@@ -92,8 +129,28 @@ export class Generador {
         this.instrucciones.push(new Instruccion('xori', rd, rs1, inmediato))
     }
 
+    jal(label){
+        this.instrucciones.push(new Instruccion('jal', label))
+    }
+
+    j(label){
+        this.instrucciones.push(new Instruccion('j', label))
+    }
+
+    ret(){
+        this.instrucciones.push(new Instruccion('ret'))
+    }
+
     ecall(){
         this.instrucciones.push(new Instruccion('ecall'))
+    }
+
+    callBuiltin(builtinName){
+        if(!builtins[builtinName]){
+            throw new Error(`Builtin ${builtinName} not found`)
+        }
+        this._usedBuiltins.add(builtinName)
+        this.jal(builtinName)
     }
 
     printInt(rd = r.A0){
@@ -161,17 +218,20 @@ export class Generador {
                 break;
 
             case 'string':
-                const stringArray = stringTo32BitsArray(object.valor);
+                let valorS = RemoveCaracteresEspeciales(object.valor);
+                const stringArray = stringTo1ByteArray(valorS);
 
                 this.comment(`Pushing string ${object.valor}`);
-                this.addi(r.T0, r.HP, 4);
-                this.push(r.T0);
+                this.push(r.HP);
 
-                stringArray.forEach((block32bits) => {
-                    this.li(r.T0, block32bits);
+                stringArray.forEach((charCode) => {
+                    this.li(r.T0, charCode);
                     //this.push(r.T0);
-                    this.addi(r.HP, r.HP, 4);
-                    this.sw(r.T0, r.HP);
+                    //this.addi(r.HP, r.HP, 4);
+                    //this.sw(r.T0, r.HP);
+
+                    this.sb(r.T0, r.HP);
+                    this.addi(r.HP, r.HP, 1);
                 });
 
                 length = 4;
@@ -274,7 +334,15 @@ export class Generador {
     }
 
     toString(){
+        this.comment('fin del programa')
         this.endProgram();
+        this.comment('Builtins')
+
+        Array.from(this._usedBuiltins).forEach(builtinName => {
+            this.addLabel(builtinName)
+            builtins[builtinName](this)
+            this.ret()
+        })
         return `
 .data
 heap:
