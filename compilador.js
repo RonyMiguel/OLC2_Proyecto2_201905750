@@ -7,6 +7,9 @@ export class CompilerVisitor extends BaseVisitor {
     constructor(){
         super();
         this.code = new Generador();
+
+        this.continueLabel = null;
+        this.breakLabel = null;
     }
 
     /**
@@ -375,5 +378,100 @@ export class CompilerVisitor extends BaseVisitor {
         }
 
         this.code.comment('Fin de If');
+    }
+
+    /**
+     * @type {BaseVisitor['visitWhile']}
+     */
+    visitWhile(node){
+        this.code.comment('Inicio de While');
+
+        const startWhileLabel = this.code.getLabel();
+        const prevContinueLabel = this.continueLabel;
+        this.continueLabel = startWhileLabel;
+
+        const endWhileLabel = this.code.getLabel();
+        const prevBreakLabel = this.breakLabel;
+        this.breakLabel = endWhileLabel;
+
+        this.code.addLabel(startWhileLabel);
+        this.code.comment('Condición');
+        node.cond.accept(this);
+        this.code.popObject(r.T0);
+        this.code.comment('Fin Condición');
+
+        this.code.beq(r.T0, r.ZERO, endWhileLabel);
+        this.code.comment('While True');
+        node.stmt.accept(this);
+        this.code.j(startWhileLabel);
+        this.code.addLabel(endWhileLabel);
+
+        this.code.comment('Fin de While');
+
+        this.continueLabel = prevContinueLabel;
+        this.breakLabel = prevBreakLabel;
+    }
+
+    /**
+     * @type {BaseVisitor['visitFor']}
+     */
+    visitFor(node){
+        this.code.comment('Inicio de For');
+
+        const startForLabel = this.code.getLabel();
+
+        const endForLabel = this.code.getLabel();
+        const prevBreakLabel = this.breakLabel;
+        this.breakLabel = endForLabel;
+
+        const incrementLabel = this.code.getLabel();
+        const prevContinueLabel = this.continueLabel;
+        this.continueLabel = incrementLabel;
+
+        this.code.newScope();
+        node.init.accept(this);
+
+        this.code.addLabel(startForLabel);
+        node.cond.accept(this);
+        this.code.popObject(r.T0);
+        this.code.beq(r.T0, r.ZERO, endForLabel);
+
+        this.code.comment('For True');
+        node.stmt.accept(this);
+
+        this.code.addLabel(incrementLabel);
+        node.inc.accept(this);
+        this.code.popObject(r.T0);
+        this.code.j(startForLabel);
+
+        this.code.addLabel(endForLabel);
+
+        this.code.comment("reduciendo el scope");
+        const bytesToRemove = this.code.endScope(); 
+
+        if(bytesToRemove > 0){
+            this.code.addi(r.SP, r.SP, bytesToRemove);
+        }
+
+        this.code.comment('Fin de For');
+
+        this.continueLabel = prevContinueLabel;
+        this.breakLabel = prevBreakLabel;
+    }
+
+    /**
+     * @type {BaseVisitor['visitBreak']}
+     */
+    visitBreak(node){
+        this.code.comment('Break');
+        this.code.j(this.breakLabel);
+    }
+    
+    /**
+     * @type {BaseVisitor['visitContinue']}
+     */
+    visitContinue(node){
+        this.code.comment('Continue');
+        this.code.j(this.continueLabel);
     }
 }

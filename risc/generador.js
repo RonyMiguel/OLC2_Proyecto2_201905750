@@ -275,7 +275,12 @@ export class Generador {
     }
 
     pushObject(object){
-        this.objectStack.push(object);
+        //this.objectStack.push(object);
+
+        this.objectStack.push({
+            ...object,
+            depth: object.depth
+        });
     }
 
     popFloat(rd = r.FT0){
