@@ -1,4 +1,4 @@
-import { registers as r } from "./risc/constantes.js";
+import { registers as r, floatRegisters as f } from "./risc/constantes.js";
 import { Generador } from "./risc/generador.js";
 import { BaseVisitor } from "./visitor.js";
 
@@ -84,8 +84,70 @@ export class CompilerVisitor extends BaseVisitor {
         node.izq.accept(this);
         node.der.accept(this);
 
-        const der = this.code.popObject(r.T1);
-        const izq = this.code.popObject(r.T0);
+        const isDerFloat = this.code.getTopObject().type === 'float';
+        const der = this.code.popObject(isDerFloat ? f.FT1 : r.T1);
+        const isIzqFloat = this.code.getTopObject().type === 'float';
+        const izq = this.code.popObject(isIzqFloat ? f.FT0 : r.T0);
+
+        if (isIzqFloat || isDerFloat) {
+            if (!isIzqFloat) this.code.fcvtsw(f.FT0, r.T0);
+            if (!isDerFloat) this.code.fcvtsw(f.FT1, r.T1);
+
+            switch(node.op){
+                case '+':
+                    this.code.fadd(f.FT0, f.FT0, f.FT1);
+                    this.code.pushFloat(f.FT0);
+                    this.code.pushObject({ type: 'float', length: 4 });
+                    break;
+                case '-':
+                    this.code.fsub(f.FT0, f.FT0, f.FT1);
+                    this.code.pushFloat(f.FT0);
+                    this.code.pushObject({ type: 'float', length: 4 });
+                    break;
+                case '*':
+                    this.code.fmul(f.FT0, f.FT0, f.FT1);
+                    this.code.pushFloat(f.FT0);
+                    this.code.pushObject({ type: 'float', length: 4 });
+                    break;
+                case '/':
+                    this.code.fdiv(f.FT0, f.FT0, f.FT1);
+                    this.code.pushFloat(f.FT0);
+                    this.code.pushObject({ type: 'float', length: 4 });
+                    break;
+                case '>':
+                    this.code.flt(r.T0, f.FT1, f.FT0);
+                    this.code.push(r.T0);
+                    this.code.pushObject({ type: 'boolean', length: 4 });
+                    break;
+                case '<':
+                    this.code.flt(r.T0, f.FT0, f.FT1);
+                    this.code.push(r.T0);
+                    this.code.pushObject({ type: 'boolean', length: 4 });
+                    break;
+                case '>=':
+                    this.code.fle(r.T0, f.FT1, f.FT0);
+                    this.code.push(r.T0);
+                    this.code.pushObject({ type: 'boolean', length: 4 });
+                    break;
+                case '<=':
+                    this.code.fle(r.T0, f.FT0, f.FT1);
+                    this.code.push(r.T0);
+                    this.code.pushObject({ type: 'boolean', length: 4 });
+                    break;
+                case '==':
+                    this.code.feq(r.T0, f.FT0, f.FT1);
+                    this.code.push(r.T0);
+                    this.code.pushObject({ type: 'boolean', length: 4 });
+                    break;
+                case '!=':
+                    this.code.feq(r.T0, f.FT0, f.FT1);
+                    this.code.xori(r.T0, r.T0, 1);
+                    this.code.push(r.T0);
+                    this.code.pushObject({ type: 'boolean', length: 4 });
+                    break;
+            }
+            return
+        }
 
         if (izq.type === 'string' || der.type === 'string') {
             this.code.add(r.A0, r.ZERO, r.T0);
@@ -196,13 +258,15 @@ export class CompilerVisitor extends BaseVisitor {
         this.code.comment('Print');
         node.exp.accept(this);
         
-        const object = this.code.popObject(r.A0);
+        const isFloat = this.code.getTopObject().type === 'float';
+        const object = this.code.popObject(isFloat ? f.FA0 : r.A0);
 
         const tiposPrint = {
             'int': () => this.code.printInt(),
             'string': () => this.code.printString(),
             'char': () => this.code.printChar(),
-            'boolean': () => this.code.printInt()
+            'boolean': () => this.code.printInt(),
+            'float': () => this.code.printFloat()
         }
 
         tiposPrint[object.type]();
