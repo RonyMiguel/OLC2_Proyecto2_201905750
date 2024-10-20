@@ -17,7 +17,8 @@ export class CompilerVisitor extends BaseVisitor {
      */
     visitExpresionStmt(node){
         node.exp.accept(this);
-        this.code.popObject(r.T0);
+        const isFloat = this.code.getTopObject().type === 'float';
+        this.code.popObject(isFloat ? f.FT0 : r.T0);
     }
 
     /**
@@ -273,6 +274,29 @@ export class CompilerVisitor extends BaseVisitor {
         }
 
         tiposPrint[object.type]();
+
+        if (node.der.length !== 0) {
+            for (let exp of node.der) {
+                exp.accept(this);
+                const isFloat = this.code.getTopObject().type === 'float';
+                const object = this.code.popObject(isFloat ? f.FA0 : r.A0);
+
+                const tiposPrint = {
+                    'int': () => this.code.printInt(),
+                    'string': () => this.code.printString(),
+                    'char': () => this.code.printChar(),
+                    'boolean': () => this.code.printInt(),
+                    'float': () => this.code.printFloat()
+                }
+
+                tiposPrint[object.type]();
+            }
+        }
+
+        //Salto de linea
+        this.code.li(r.A0, 10);
+        this.code.printChar();
+
     }
 
     /**
@@ -294,11 +318,16 @@ export class CompilerVisitor extends BaseVisitor {
         this.code.comment(`Asignacion variable: ${node.id}`);
 
         node.asgn.accept(this);
-        const valueObject = this.code.popObject(r.T0);
+        const isFloat = this.code.getTopObject().type === 'float';
+        const valueObject = this.code.popObject(isFloat ? f.FT0 : r.T0);
         const [offset, variableObject] = this.code.getObject(node.id);
 
         this.code.addi(r.T1, r.SP, offset);
-        this.code.sw(r.T0, r.T1);
+        if (variableObject.type === 'float') {
+            this.code.fsw(f.FT0, r.T1);
+        } else {
+            this.code.sw(r.T0, r.T1);
+        }
 
         variableObject.type = valueObject.type;
 
