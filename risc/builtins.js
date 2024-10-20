@@ -41,6 +41,22 @@ export const concatString = (code) => {
     code.addi(r.HP, r.HP, 1)
 }
 
+export const printBool = (code) => {
+    // A0 -> dirección en heap de la cadena a imprimir
+    code.comment('Imprimiendo boolean')
+    code.beq(r.T0, r.ZERO, 'false')
+    code.addLabel('true')
+    code.la(r.A0, 'trueStr')
+    code.j('printB')
+    code.addLabel('false')
+    code.la(r.A0, 'falseStr')
+    code.addLabel('printB')
+    code.li(r.A7, 4)
+    code.ecall()
+    code.comment('Fin de impresión de boolean')
+}
+
 export const builtins = {
-    concatString: concatString
+    concatString: concatString,
+    printBool: printBool
 }

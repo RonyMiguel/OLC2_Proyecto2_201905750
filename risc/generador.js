@@ -71,6 +71,10 @@ export class Generador {
         this.instrucciones.push(new Instruccion('lw', rd, `${inmediato}(${rs1})`))
     }
 
+    la(rd, label){
+        this.instrucciones.push(new Instruccion('la', rd, label))
+    }
+
     lb(rd, rs1, inmediato = 0){
         this.instrucciones.push(new Instruccion('lb', rd, `${inmediato}(${rs1})`))
     }
@@ -380,6 +384,8 @@ export class Generador {
         })
         return `
 .data
+trueStr:        .string      "true"
+falseStr:       .string      "false"
 heap:
 .text
 
