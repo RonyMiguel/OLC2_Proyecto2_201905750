@@ -156,9 +156,25 @@ export class CompilerVisitor extends BaseVisitor {
         if (izq.type === 'string' || der.type === 'string') {
             this.code.add(r.A0, r.ZERO, r.T0);
             this.code.add(r.A1, r.ZERO, r.T1);
-            this.code.callBuiltin('concatString');
-            this.code.pushObject({ type: 'string', length: 4});
-            return;
+            switch(node.op){
+                case '+':
+                    this.code.callBuiltin('concatString');
+                    this.code.pushObject({ type: 'string', length: 4});
+                    return;
+                case '==':
+                    this.code.callBuiltin('compareStrings');
+                    this.code.push(r.T0);
+                    this.code.pushObject({ type: 'boolean', length: 4});
+                    return;
+                case '!=':
+                    this.code.callBuiltin('compareStrings');
+                    this.code.sltiu(r.T0, r.T0, 1);
+                    this.code.push(r.T0);
+                    this.code.pushObject({ type: 'boolean', length: 4});
+                    return;
+                default:
+                    throw new Error(`Operación no soportada para strings: ${node.op}`);
+            }
         }
 
         switch(node.op){
@@ -178,7 +194,14 @@ export class CompilerVisitor extends BaseVisitor {
                 this.code.pushObject({ type: 'int', length: 4 });
                 break;
             case '/':
+                const endDiv = this.code.getLabel();
+                const errorDiv = this.code.getLabel();
+                this.code.beq(r.T1, r.ZERO, errorDiv);
                 this.code.div(r.T0, r.T0, r.T1);
+                this.code.j(endDiv);
+                this.code.addLabel(errorDiv);
+                this.code.li(r.T0, 1111);
+                this.code.addLabel(endDiv);
                 this.code.push(r.T0);
                 this.code.pushObject({ type: 'int', length: 4 });
                 break;
@@ -230,15 +253,22 @@ export class CompilerVisitor extends BaseVisitor {
      */
     visitOperacionUnaria(node){
         node.exp.accept(this);
-
-        this.code.popObject(r.T0);
+        const isFloat = this.code.getTopObject().type === 'float';
+        this.code.popObject(isFloat ? f.FT0 : r.T0);
 
         switch(node.op){
             case '-':
-                this.code.li(r.T1, 0);
-                this.code.sub(r.T0, r.T1, r.T0);
-                this.code.push(r.T0);
-                this.code.pushObject({ type: 'int', length: 4 });
+                if (isFloat) {
+                    this.code.fmv(f.FT1, f.FT0);
+                    this.code.fneg(f.FT0, f.FT1);
+                    this.code.pushFloat(f.FT0);
+                    this.code.pushObject({ type: 'float', length: 4 });
+                }else{
+                    this.code.li(r.T1, 0);
+                    this.code.sub(r.T0, r.T1, r.T0);
+                    this.code.push(r.T0);
+                    this.code.pushObject({ type: 'int', length: 4 });
+                }
                 break;
             case '!':
                 this.code.xori(r.T0, r.T0, 1);
@@ -265,15 +295,27 @@ export class CompilerVisitor extends BaseVisitor {
         const isFloat = this.code.getTopObject().type === 'float';
         const object = this.code.popObject(isFloat ? f.FA0 : r.A0);
 
-        const tiposPrint = {
-            'int': () => this.code.printInt(),
-            'string': () => this.code.printString(),
-            'char': () => this.code.printChar(),
-            'boolean': () => this.code.callBuiltin('printBool'),
-            'float': () => this.code.printFloat()
+        if (object.isNull !== undefined) {
+            this.code.callBuiltin('printNull');
+        }else{
+            const tiposPrint = {
+                'int': () => this.code.printInt(),
+                'string': () => this.code.printString(),
+                'char': () => this.code.printChar(),
+                'boolean': () => this.code.callBuiltin('printBool'),
+                'float': () => this.code.printFloat()
+            }
+            
+            this.code.xori(r.T5, r.A0, 1111);
+            const l1 = this.code.getLabel();
+            const l2 = this.code.getLabel();
+            this.code.beq(r.T5, r.ZERO, l1);
+            tiposPrint[object.type]();
+            this.code.j(l2);
+            this.code.addLabel(l1);
+            this.code.callBuiltin('printNull');
+            this.code.addLabel(l2);
         }
-
-        tiposPrint[object.type]();
 
         if (node.der.length !== 0) {
             for (let exp of node.der) {
@@ -281,15 +323,19 @@ export class CompilerVisitor extends BaseVisitor {
                 const isFloat = this.code.getTopObject().type === 'float';
                 const object = this.code.popObject(isFloat ? f.FA0 : r.A0);
 
-                const tiposPrint = {
-                    'int': () => this.code.printInt(),
-                    'string': () => this.code.printString(),
-                    'char': () => this.code.printChar(),
-                    'boolean': () => this.code.callBuiltin('printBool'),
-                    'float': () => this.code.printFloat()
+                if (object.isNull !== undefined) {
+                    this.code.callBuiltin('printNull');
+                }else{
+                    const tiposPrint = {
+                        'int': () => this.code.printInt(),
+                        'string': () => this.code.printString(),
+                        'char': () => this.code.printChar(),
+                        'boolean': () => this.code.callBuiltin('printBool'),
+                        'float': () => this.code.printFloat()
+                    }
+            
+                    tiposPrint[object.type]();
                 }
-
-                tiposPrint[object.type]();
             }
         }
 
@@ -305,7 +351,22 @@ export class CompilerVisitor extends BaseVisitor {
     visitDeclaracion(node){
         this.code.comment(`Declaracion variable: ${node.id}`);
 
-        node.exp.accept(this);
+        if (node.exp === null) {
+            this.code.comment("null assignemt");
+            this.code.li(r.T0, 1111);
+            this.code.push(r.T0);
+            this.code.pushObject({ type: node.tipo, length: 4, isNull: true });
+        }else{
+            node.exp.accept(this);
+            const valueType = this.code.getTopObject().type
+            if (node.tipo != "var" && node.tipo !== valueType) {
+                this.code.comment("Tipo de dato no coincide con el valor asignado, null assignemt");
+                this.code.popObject(r.T0);
+                this.code.li(r.T0, 1111);
+                this.code.push(r.T0);
+                this.code.pushObject({ type: node.tipo, length: 4, isNull: true });
+            }
+        }
         this.code.tagObject(node.id);
 
         this.code.comment(`Fin Declaracion variable: ${node.id}`);
@@ -318,22 +379,34 @@ export class CompilerVisitor extends BaseVisitor {
         this.code.comment(`Asignacion variable: ${node.id}`);
 
         node.asgn.accept(this);
+        const valueType = this.code.getTopObject().type;
         const isFloat = this.code.getTopObject().type === 'float';
         const valueObject = this.code.popObject(isFloat ? f.FT0 : r.T0);
         const [offset, variableObject] = this.code.getObject(node.id);
 
         this.code.addi(r.T1, r.SP, offset);
-        if (variableObject.type === 'float') {
-            this.code.fsw(f.FT0, r.T1);
-        } else {
+
+        if (valueType !== variableObject.type) {
+            this.code.comment("Tipo de dato no coincide con el valor asignado, null assignemt");
+            this.code.li(r.T0, 1111);
             this.code.sw(r.T0, r.T1);
+            this.code.push(r.T0);
+            this.code.pushObject({ type: node.tipo, length: 4, isNull: true });
+        }else{
+            if (variableObject.type === 'float') {
+                this.code.fsw(f.FT0, r.T1);
+            } else {
+                this.code.sw(r.T0, r.T1);
+            }
+
+            variableObject.type = valueObject.type;
+            variableObject.isNull = undefined;
+
+            // Se vuelve a insertar a la pila porque la asignación devuelve su valor como una expresión
+            this.code.push(r.T0);
+            this.code.pushObject(valueObject);
         }
-
-        variableObject.type = valueObject.type;
-
-        // Se vuelve a insertar a la pila porque la asignación devuelve su valor como una expresión
-        this.code.push(r.T0);
-        this.code.pushObject(valueObject);
+        
 
         this.code.comment(`Fin Asignacion variable: ${node.id}`);
     }
@@ -502,5 +575,80 @@ export class CompilerVisitor extends BaseVisitor {
     visitContinue(node){
         this.code.comment('Continue');
         this.code.j(this.continueLabel);
+    }
+
+    /**
+     * @type {BaseVisitor['visitSwitch']}
+     */
+    visitSwitch(node){
+        /* 
+            node.cases -> cases
+            node.def -> default
+            node.exp -> condicion
+
+            switch (exp) {
+                case 1:
+                    Declaraciones
+                    break;
+                case 2:
+                    Declaraciones
+                    break;
+                default:
+                    Declaraciones
+                    break;
+            }
+        */
+        
+        this.code.comment('Inicio de Switch');
+        // Obtener el valor de la expresión
+        node.exp.accept(this);
+
+        const endSwitchLabel = this.code.getLabel();
+        const prevBreakLabel = this.breakLabel;
+        this.breakLabel = endSwitchLabel;
+
+        const cases = node.cases;
+        let caseLabels = [];
+
+        for (let i = 0; i < cases.length; i++) {
+            cases[i].exp.accept(this);
+            this.code.popObject(r.T1); // Valor del case
+
+            const object = this.code.popObject(r.T0); // valor de la expresión del switch
+            this.code.push(r.T0); // Se vuelve a insertar el valor de la expresión del switch
+            this.code.pushObject(object); // Se vuelve a insertar el valor de la expresión del switch
+            
+            const caseLabel = this.code.getLabel();
+            caseLabels.push(caseLabel);
+            this.code.beq(r.T0, r.T1, caseLabel);
+        }
+        this.code.popObject(r.T0); // Se elimina el valor de la expresión del switch
+
+        for (let i = 0; i < cases.length; i++) {
+            this.code.comment(`Case ${i}`);
+            this.code.comment('Condición');
+            this.code.addLabel(caseLabels[i]);
+            cases[i].accept(this);
+            this.code.comment('Fin Condición');
+        }
+
+        if (node.def) {
+            this.code.comment('Default');
+            node.def.forEach(sentencia => sentencia.accept(this))
+        }
+
+        this.code.addLabel(endSwitchLabel);
+        this.code.comment('Fin de Switch');
+
+        this.breakLabel = prevBreakLabel;
+    }
+
+    /**
+     * @type {BaseVisitor['visitCase']}
+     */
+    visitCase(node){
+        this.code.comment('Inicio de Case');
+        node.stmt.forEach(sentencia => sentencia.accept(this));
+        this.code.comment('Fin de Case');
     }
 }

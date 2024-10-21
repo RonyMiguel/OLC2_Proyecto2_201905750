@@ -43,6 +43,7 @@ export const concatString = (code) => {
 
 export const printBool = (code) => {
     // A0 -> dirección en heap de la cadena a imprimir
+    // T0 -> valor booleano a imprimir
     code.comment('Imprimiendo boolean')
     code.beq(r.T0, r.ZERO, 'false')
     code.addLabel('true')
@@ -56,7 +57,43 @@ export const printBool = (code) => {
     code.comment('Fin de impresión de boolean')
 }
 
+export const printNull = (code) => {
+    // A0 -> dirección en heap de la cadena a imprimir
+    code.comment('Imprimiendo null')
+    code.la(r.A0, 'nullStr')
+    code.li(r.A7, 4)
+    code.ecall()
+    code.comment('Fin de impresión de null')
+}
+export const compareStrings = (code) => {
+    // A0 -> dirección en heap de la primera cadena
+    // A1 -> dirección en heap de la segunda cadena
+    // T0 -> 1 si son iguales, 0 si no lo son
+
+    code.comment('Comparando cadenas')
+
+    code.addLabel("compareChar");
+    code.lb(r.T1, r.A0)
+    code.lb(r.T2, r.A1)
+    code.beq(r.T1, r.ZERO, 'endString')
+    code.beq(r.T2, r.ZERO, 'endString')
+    code.xor(r.T0, r.T1, r.T2);
+    code.sltiu(r.T0, r.T0, 1);
+    code.beq(r.T0, r.ZERO, 'endCompare')
+    code.addi(r.A0, r.A0, 1)
+    code.addi(r.A1, r.A1, 1)
+    code.j("compareChar")
+    code.addLabel("endString")
+    code.xor(r.T0, r.T1, r.T2);
+    code.sltiu(r.T0, r.T0, 1);
+    code.addLabel("endCompare")
+
+    code.comment('Fin de comparación de cadenas')
+}
+
 export const builtins = {
     concatString: concatString,
-    printBool: printBool
+    printBool: printBool,
+    printNull: printNull,
+    compareStrings: compareStrings
 }

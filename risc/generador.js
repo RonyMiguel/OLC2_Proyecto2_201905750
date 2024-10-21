@@ -376,6 +376,7 @@ export class Generador {
         this.comment('fin del programa')
         this.endProgram();
         this.comment('Builtins')
+        this.callBuiltin('printNull')
 
         Array.from(this._usedBuiltins).forEach(builtinName => {
             this.addLabel(builtinName)
@@ -384,6 +385,7 @@ export class Generador {
         })
         return `
 .data
+nullStr:        .string      "null"
 trueStr:        .string      "true"
 falseStr:       .string      "false"
 heap:
@@ -445,6 +447,10 @@ main:
 
     feq(rd, rs1, rs2){
         this.instrucciones.push(new Instruccion('feq.s', rd, rs1, rs2))
+    }
+
+    fneg(rd, rs){
+        this.instrucciones.push(new Instruccion('fneg.s', rd, rs))
     }
 }
 
