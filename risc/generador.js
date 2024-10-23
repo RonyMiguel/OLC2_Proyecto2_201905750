@@ -24,6 +24,7 @@ export class Generador {
     constructor(){
         this.instrucciones = []
         this.objectStack = []
+        this.instruccionesDeFunciones = []
         this.depth = 0
         this._usedBuiltins = new Set() // '_' representa una variable privada
         this._labelCounter = 0
@@ -99,6 +100,10 @@ export class Generador {
         this.instrucciones.push(new Instruccion('li', rd, inmediato))
     }
 
+    la(rd, label){
+        this.instrucciones.push(new Instruccion('la', rd, label))
+    }
+
     push(rd = r.T0){
         this.addi(r.SP, r.SP, -4) // Decrementa el puntero de pila 4 bytes = 32 bits
         this.sw(rd, r.SP)
@@ -140,6 +145,10 @@ export class Generador {
 
     jal(label){
         this.instrucciones.push(new Instruccion('jal', label))
+    }
+
+    jalr(rd, rs1, imm){
+        this.instrucciones.push(new Instruccion('jalr', rd, rs1, imm))
     }
 
     j(label){
@@ -197,19 +206,9 @@ export class Generador {
         }
     }
 
-    printString(rd = r.A0) {
-
-        if (rd !== r.A0) {
-            this.push(r.A0)
-            this.add(r.A0, rd, r.ZERO)
-        }
-
+    printString() {
         this.li(r.A7, 4)
         this.ecall()
-
-        if (rd !== r.A0) {
-            this.pop(r.A0)
-        }
     }
 
     endProgram(){
@@ -378,6 +377,12 @@ export class Generador {
         this.comment('Builtins')
         this.callBuiltin('printNull')
 
+        this.comment('Funciones foraneas')
+        this.instruccionesDeFunciones.forEach(instruccion => { 
+            this.instrucciones.push(instruccion)
+        })
+
+
         Array.from(this._usedBuiltins).forEach(builtinName => {
             this.addLabel(builtinName)
             builtins[builtinName](this)
@@ -437,6 +442,10 @@ main:
         this.instrucciones.push(new Instruccion('fcvt.s.w', rd, rs))
     }
 
+    fcvt(rd, rs1, rmode){
+        this.instrucciones.push(new Instruccion('fcvt.w.s', rd, rs1, rmode))
+    }
+
     flt(rd, rs1, rs2){
         this.instrucciones.push(new Instruccion('flt.s', rd, rs1, rs2))
     }
@@ -451,6 +460,12 @@ main:
 
     fneg(rd, rs){
         this.instrucciones.push(new Instruccion('fneg.s', rd, rs))
+    }
+
+    getFrameLocal(index){
+        const frameRelativeLocal = this.objectStack.filter(obj => obj.local === true);
+        console.log(frameRelativeLocal)
+        return frameRelativeLocal[index];
     }
 }
 
