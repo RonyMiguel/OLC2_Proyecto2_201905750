@@ -95,7 +95,7 @@ export class Generador {
     bge(rs1, rs2, label){
         this.instrucciones.push(new Instruccion('bge', rs1, rs2, label))
     }
-
+    
     li(rd, inmediato){
         this.instrucciones.push(new Instruccion('li', rd, inmediato))
     }
@@ -265,7 +265,7 @@ export class Generador {
                 break;
 
             case 'float':
-                const ieee754 = numberToF32(object.valor);
+                const ieee754 = numberToF32(parseFloat(object.valor));
                 this.li(r.T0, ieee754);
                 this.push();
                 length = 4;

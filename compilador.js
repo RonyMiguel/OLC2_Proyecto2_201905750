@@ -1,5 +1,5 @@
 import { FrameVisitor } from "./frame.js";
-import { ReferenciaVariable } from "./nodos.js";
+import nodos, { ReferenciaVariable } from "./nodos.js";
 import { registers as r, floatRegisters as f } from "./risc/constantes.js";
 import { Generador } from "./risc/generador.js";
 import { BaseVisitor } from "./visitor.js";
@@ -794,7 +794,7 @@ export class CompilerVisitor extends BaseVisitor {
             this.code.push(r.T0)
             this.code.pushObject({ type: 'int', length: 4 })
             return;
-        }else if (node.callee.id === 'parseFloat') {
+        }else if (node.callee.id === 'parsefloat') {
             this.code.comment('Llamada a parseFloat');
             node.args[0].accept(this);
             this.code.popObject(r.A0);
@@ -804,12 +804,47 @@ export class CompilerVisitor extends BaseVisitor {
         }else if (node.callee.id === 'toString') {
             this.code.comment('Llamada a toString');
             node.args[0].accept(this);
-            const obj = this.code.popObject(r.T0);
+            const isFloat = this.code.getTopObject().type === 'float';
+            const obj = this.code.popObject(isFloat ? f.FT0 : r.T0);
             console.log(obj)
             if (obj.type === 'int') {
                 this.code.callBuiltin('IntToString');
+            }else if (obj.type === 'boolean') {
+                this.code.callBuiltin('BoolToString');
+
+            }else if (obj.type === 'float') {
+                this.code.callBuiltin('FloatToString');
             }
             this.code.pushObject({ type: 'string', length: 4 })
+            return
+        } else if (node.callee.id === 'toLowerCase') {
+            this.code.comment('Llamada a toLowerCase');
+            node.args[0].accept(this);
+            const obj = this.code.popObject(r.A0);
+            if (obj.type !== 'string') {
+               throw new Error('Solo se puede llamar a toLowerCase con un string');
+            }
+            this.code.callBuiltin('LowerCase');
+            this.code.pushObject({ type: 'string', length: 4 })
+            return
+        } else if (node.callee.id === 'toUpperCase') {
+            this.code.comment('Llamada a toUpperCase');
+            node.args[0].accept(this);
+            const obj = this.code.popObject(r.A0);
+            if (obj.type !== 'string') {
+               throw new Error('Solo se puede llamar a toUpperCase con un string');
+            }
+            this.code.callBuiltin('UpperCase');
+            this.code.pushObject({ type: 'string', length: 4 })
+            return
+        } else if(node.callee.id === 'typeof') {
+            this.code.comment('Llamada a typeof');
+            node.args[0].accept(this);
+            const obj = this.code.popObject(r.A0);
+
+            const newNode = new nodos.Nativo({ tipo: 'string', valor: obj.type });
+            newNode.accept(this);
+
             return
         }
 

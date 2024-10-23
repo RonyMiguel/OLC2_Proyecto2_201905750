@@ -171,6 +171,19 @@ export const atof = (code) => {
 }
 
 export const IntToString = (code) => {
+    /*
+        Divide el numero entre 10 para ir obteniendo el digito mas a la derecha
+        Se alamacena en el hep de derecha a izquierda por lo que el heap empieza a guardar
+        desde el digito menos significativo al menos significativo
+        ej. 1369
+        Se obtienen en este orden y se guardan en el heap asi
+        9
+        6
+        3
+        1
+        el puntero del heap se posiciona en la siguiente posicion libre al final de la cadena
+        antes de empezar a guardar
+     */
     // T0 -> valor entero a convertir
     code.comment('Convirtiendo entero a cadena')
     code.push(r.HP); // Guardar la dirección en heap de la cadena
@@ -209,13 +222,135 @@ export const IntToString = (code) => {
 export const FloatToString = (code) => {
     // FT0 -> valor flotante a convertir
     code.comment('Convirtiendo float a cadena')
+    code.push(r.HP); // Guardar la dirección en heap de la cadena
+    code.addi(r.T0, r.ZERO, 10)
+    code.fcvtsw(f.FT1, r.T0)
+    code.fmul(f.FT0, f.FT0, f.FT1); // Multiplicar el valor por 1000
+    code.fcvt(r.T0, f.FT0); // Convertir el valor a entero
+
+    code.add(r.T1, r.T0, r.ZERO);  // Copiar el valor a otro registro
+    code.li(r.T2, 10);      // Base para convertir a decimal
+    code.li(r.T3, 0);      // Tamano de la cadena
+
+    code.addLabel('FloatGetSize')
+    code.div(r.T1, r.T1, r.T2); // Dividir el valor entre 10
+    code.addi(r.T3, r.T3, 1);   // Aumentar el tamaño de la cadena
+    code.beq(r.T1, r.ZERO, 'FloatConvert') // Si el resultado es 0, terminar
+    code.j('FloatGetSize')
+   
+    code.addLabel('FloatConvert')
+    code.addi(r.T3, r.T3, 2);   // Aumentar el tamaño de la cadena con el caracter nulo y la siguiente posicion libre
+    code.add(r.HP, r.HP, r.T3); // Mover el puntero de heap hasta el final de la cadena
+    code.addi(r.T4, r.HP, -1); // Copia de la direccion del heap quedando en la posicion del caracter nulo
+    code.sb(r.ZERO, r.T4);     // Agregar el caracter nulo al final
+    code.addi(r.T4, r.T4, -1);      // Mover el puntero de la cadena
+
+    code.li(r.T5, 0)            // Base para la parte decimal
+    code.addLabel('loopForDecimals')
+    code.div(r.T1, r.T0, r.T2);     // Dividir el valor entre 10
+    code.mul(r.T3, r.T1, r.T2);     // Multiplicar el resultado por 10
+    code.sub(r.T3, r.T0, r.T3);     // Obtener el sobrante
+    code.addi(r.T3, r.T3, 48);      // Convertir el residuo a caracter
+    code.sb(r.T3, r.T4);             // Guardar el caracter en la cadena
+    code.addi(r.T4, r.T4, -1);      // Mover el puntero de la cadena
+    code.addi(r.T0, r.T1, 0);       // Copiar el resultado de la division
+    code.li(r.T3, 1)
+    code.addi(r.T5, r.T5, 1);       // Aumentar el contador de decimales
+    code.beq(r.T5, r.T3, 'addPoint') // Si el resultado es 0, terminar\
+    code.j('loopForDecimals')
+
+    code.addLabel('addPoint')
+    code.li(r.T3, 46)
+    code.sb(r.T3, r.T4);             // Guardar el caracter en la cadena
+    code.addi(r.T4, r.T4, -1);      // Mover el puntero de la cadena
+
+    code.addLabel('loopFloat')
+    code.div(r.T1, r.T0, r.T2);     // Dividir el valor entre 10
+    code.mul(r.T3, r.T1, r.T2);     // Multiplicar el resultado por 10
+    code.sub(r.T3, r.T0, r.T3);     // Obtener el sobrante
+    code.addi(r.T3, r.T3, 48);      // Convertir el residuo a caracter
+    code.sb(r.T3, r.T4);             // Guardar el caracter en la cadena
+    code.addi(r.T4, r.T4, -1);      // Mover el puntero de la cadena
+    code.addi(r.T0, r.T1, 0);       // Copiar el resultado de la division
+    code.beq(r.T0, r.ZERO, 'endFloat') // Si el resultado es 0, terminar
+    code.j('loopFloat')
+    code.addLabel('endFloat')
+
+    code.comment('Fin de conversión a cadena')
+
 }
 
 export const BoolToString = (code) => {
     // T0 -> valor booleano a convertir
     code.comment('Convirtiendo boolean a cadena')
+    code.push(r.HP)             // Guardar la dirección en heap de la cadena
+    code.beq(r.T0, r.ZERO, 'Lfalse')
+    code.la(r.T0, 'trueStr')    // Copiar la direcion del string "true"
+    code.j('LBool')
+    code.addLabel('Lfalse')
+    code.la(r.T0, 'falseStr')   // Copiar la direcion del string "false"
+    code.addLabel('LBool')
+    code.lb(r.T1, r.T0)         // Leer el caracter
+    code.sb(r.T1, r.HP)         // Guardar el caracter en el heap
+    code.addi(r.T0, r.T0, 1)    // Mover el puntero de la cadena
+    code.addi(r.HP, r.HP, 1)    // Aumentar el puntero de heap
+    code.beq(r.T1, r.ZERO, 'endBool') // Si el caracter es nulo, terminar
+    code.j('LBool')
+    code.addLabel('endBool')
+
+    code.comment('Fin de conversión a cadena')
+
 }
 
+export const LowerCase = (code) => {
+    // A0 -> dirección en heap de la cadena a convertir
+    code.comment('Convirtiendo cadena a minusculas')
+    code.push(r.HP); // Guardar la dirección en heap de la cadena
+
+    code.addLabel('loopLower')
+    code.lb(r.T1, r.A0)         // Leer el caracter
+    code.beq(r.T1, r.ZERO, 'endLower') // Si el caracter es nulo, terminar
+    code.li(r.T2, 65)           // 'A'
+    code.li(r.T3, 91)           // 'Z'
+    code.blt(r.T1, r.T2, 'nextLower') // Si el caracter es menor que 'A', no hacer nada
+    code.bge(r.T1, r.T3, 'nextLower') // Si el caracter es mayor que 'Z', no hacer nada
+    code.addi(r.T1, r.T1, 32)   // Convertir a minuscula
+    code.addLabel('nextLower')
+    code.sb(r.T1, r.HP)         // Guardar el caracter en el heap
+    code.addi(r.HP, r.HP, 1)    // Aumentar el puntero de heap
+    code.addi(r.A0, r.A0, 1)    // Mover el puntero de la cadena
+    code.j('loopLower')
+    code.addLabel('endLower')
+    code.sb(r.T1, r.HP)         // Guardar el caracter nulo en el heap
+    code.addi(r.HP, r.HP, 1)    // Aumentar el puntero de heap
+
+    code.comment('Fin de conversión a minusculas')
+}
+
+export const UpperCase = (code) => {
+    // A0 -> dirección en heap de la cadena a convertir
+    code.comment('Convirtiendo cadena a mayusculas')
+    code.push(r.HP); // Guardar la dirección en heap de la cadena
+
+    code.addLabel('loopUpper')
+    code.lb(r.T1, r.A0)         // Leer el caracter
+    code.beq(r.T1, r.ZERO, 'endUpper') // Si el caracter es nulo, terminar
+    code.li(r.T2, 97)           // 'a'
+    code.li(r.T3, 123)          // 'z'
+    code.blt(r.T1, r.T2, 'nextUpper') // Si el caracter es menor que 'a', no hacer nada
+    code.bge(r.T1, r.T3, 'nextUpper') // Si el caracter es mayor que 'z', no hacer nada
+    code.addi(r.T1, r.T1, -32)  // Convertir a mayuscula
+    code.addLabel('nextUpper')
+    code.sb(r.T1, r.HP)         // Guardar el caracter en el heap
+    code.addi(r.HP, r.HP, 1)    // Aumentar el puntero de heap
+    code.addi(r.A0, r.A0, 1)    // Mover el puntero de la cadena
+    code.j('loopUpper')
+    code.addLabel('endUpper')
+    code.sb(r.T1, r.HP)         // Guardar el caracter nulo en el heap
+    code.addi(r.HP, r.HP, 1)    // Aumentar el puntero de heap
+
+    code.comment('Fin de conversión a mayusculas')
+}
 
 export const builtins = {
     concatString: concatString,
@@ -223,6 +358,10 @@ export const builtins = {
     printNull: printNull,
     atoi: atoi,
     atof: atof,
+    BoolToString: BoolToString,
     IntToString: IntToString,
+    FloatToString: FloatToString,
+    LowerCase: LowerCase,
+    UpperCase: UpperCase,
     compareStrings: compareStrings
 }
