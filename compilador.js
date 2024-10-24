@@ -840,7 +840,8 @@ export class CompilerVisitor extends BaseVisitor {
         } else if(node.callee.id === 'typeof') {
             this.code.comment('Llamada a typeof');
             node.args[0].accept(this);
-            const obj = this.code.popObject(r.A0);
+            const isFloat = this.code.getTopObject().type === 'float';
+            const obj = this.code.popObject(isFloat ? f.FT0 : r.T0);
 
             const newNode = new nodos.Nativo({ tipo: 'string', valor: obj.type });
             newNode.accept(this);
@@ -931,5 +932,193 @@ export class CompilerVisitor extends BaseVisitor {
 
         this.code.j(this.returnLabel);
         this.code.comment('Fin de Return');
+    }
+
+    /**
+     * @type {BaseVisitor['visitDclArray']}
+     */
+    visitDclArray(node){
+        /*
+            node.tipo
+            node.id
+            node.dim
+            node.exp
+
+            tipos de declaracino
+            int [] numbers = {1, 2, 3, 4, 5};
+            int [] numbers1 = new int[5];
+            int [] numbersCopia = numbers;
+        */
+        this.code.comment(`Declaracion de Array: ${node.id}`);
+        // Guardamos la direccion en heap para el array
+        this.code.push(r.HP);
+        this.code.pushObject({ type: node.tipo, length: 4})
+        this.code.tagObject(node.id);
+
+        if (Array.isArray(node.exp)){
+            /* int [] numbers1 = new int[5];
+               exp = lista de la cantidad de elementos
+               la cantidad indicada en la lista es la cantidad de elementos a crear con su valor inicial
+            */
+           
+            // Ya que solo habran arrays de 1 dimension siempre visitaremos el primer elemento
+            node.exp[0].exp.accept(this);   // Obtener el valor de elementos que tendra el arreglo
+            this.code.popObject(r.T3);  // Guardamos en T3 ese valor
+
+            // Usar un ciclo para ingresar al heap esa cantidad de elementos con su valor por defecto
+            this.code.li(r.T1, 0);       // Inicializamos el contador en 0
+            if (node.tipo === 'int' || node.tipo === 'boolean' || node.tipo === 'char'){
+                this.code.li(r.T2, 0);      // valor por defecto
+                const label = this.code.getLabel();
+                this.code.addLabel(label);
+                this.code.beq(r.T1, r.T3, label + '_end'); // Valor por defecto
+                this.code.pushToHeap(r.T2); // Guardamos en el heap el valor
+                this.code.addi(r.T1, r.T1, 1); // Incrementamos el contador
+                this.code.j(label);
+                this.code.addLabel(label + '_end');
+
+            }else if(node.tipo === 'float'){
+                const newNode = new nodos.Nativo({ tipo: 'float', valor: 0.0 });
+                newNode.accept(this);
+                this.code.popObject(f.FT0);   // valor por defecto
+                const label = this.code.getLabel();
+                this.code.addLabel(label);
+                this.code.beq(r.T1, r.T3, label + '_end'); // Valor por defecto
+                this.code.pushFloatToHeap(f.FT0);        // Guardamos en el heap el valor
+                this.code.addi(r.T1, r.T1, 1); // Incrementamos el contador
+                this.code.j(label);
+                this.code.addLabel(label + '_end');
+            }
+
+
+        }else if(node.exp instanceof nodos.ReferenciaVariable){
+            /* int [] numbersCopia = numbers;
+               exp = nodo ReferenciaVariable -> id
+               Para este caso solo se debe copiar la direccion del array
+            */
+
+            node.exp.accept(this);
+            this.code.popObject(r.A0);
+            this.code.callBuiltin('copyArray');
+
+        }else{
+            /* int [] numbers = {1, 2, 3, 4, 5};
+               exp = nodo Arreglo -> args
+               se debe recorrer cada uno de los argumentos y pushearlos al heap
+            */
+
+            // Recorremos los argumentos y los pusheamos al heap
+            if(node.tipo !== 'string'){
+                node.exp.args.forEach(arg => {
+                arg.accept(this);
+                const isFloat = this.code.getTopObject().type === 'float';
+                this.code.popObject(isFloat ? f.FT0 : r.T0);
+                if (isFloat) {
+                    this.code.pushFloatToHeap(f.FT0);
+                } else{
+                    this.code.pushToHeap(r.T0);               // Cada argumento se pushea al heap y ocupa 4 bytes
+                }
+                });
+
+            }else{
+                // Si el tipo es string, se debe guardar la longitud de la cadena
+            }
+        }
+
+        //agregar un caracter de finalizacion de arrays
+        this.code.li(r.T0, 1112);   // 1112 es el valor de finalizacion de arrays
+        this.code.pushToHeap(r.T0); // Se pushea al heap el valor de finalizacion de arrays
+
+        
+    
+        
+        
+        this.code.comment(`Fin de Declaracion de Array: ${node.id}`);
+    }
+
+    /**
+     * @type {BaseVisitor['visitGet']}
+     */
+    visitGet(node){
+        /*
+            node.objetivo       // Nombre del array del que se quiere obtener informacion
+            node.propiedad      // posicion del array que se quiere obtener
+        */        
+
+        this.code.comment(`Inicio de Get`);
+
+        /* 
+            Primero se debe saber que array se quiere obtener informacion
+            por lo tanto al visitar referencia variable nos devuelve la direccion del 
+            Esa direccion se guarda en A0
+        */
+       node.objetivo.accept(this);
+       const obj = this.code.popObject(r.A0);  
+       
+       /*
+           Lo siguiente es obtener la posicion del array que se quiere obtener
+           Para eso debemos recorrer la propiedad y obtener el valor de la posicion
+           Esa posicion se guarda en T0
+       */
+        node.propiedad.accept(this);
+        this.code.popObject(r.T0);
+
+        this.code.callBuiltin('getArray');
+        
+        // El valor esta en T0 y ahora se debe pushear a la pila
+        this.code.push(r.T0);
+        this.code.pushObject({ type: obj.type, length: 4 });
+
+
+        this.code.comment(`Fin de Get`);
+    }
+
+    /**
+     * @type {BaseVisitor['visitSet']}
+     */
+    visitSet(node){
+        /*
+            node.objetivo       // Nombre del array al que se quiere asignar un valor
+            node.propiedad      // posicion del array que se quiere asignar
+            node.valor            // valor que se quiere asignar
+        */
+        
+        this.code.comment(`Inicio de Set`);
+
+        /* 
+            Primero se debe saber que array se quiere obtener informacion
+            por lo tanto al visitar referencia variable nos devuelve la direccion del 
+            Esa direccion se guarda en A0
+        */
+       node.objetivo.accept(this);
+       this.code.popObject(r.A0);  
+       
+       /*
+           Lo siguiente es obtener la posicion del array que se quiere modificar
+           Para eso debemos recorrer la propiedad y obtener el valor de la posicion
+           Esa posicion se guarda en T5
+       */
+        node.propiedad.accept(this);
+        this.code.popObject(r.T5);
+
+        /*
+            Ahora se debe obtener el valor que se quiere asignar
+            Para eso recorremos el valor y obtenemos el valor
+            Ese valor se guarda en T0 o FT0
+        */
+        node.valor.accept(this);
+        const isFloat = this.code.getTopObject().type === 'float';
+        const obj = this.code.popObject(isFloat ? f.FT0 : r.T0);
+
+        if (isFloat) {
+            this.code.pushFloat(f.FT0);
+        }else{
+            this.code.push(r.T0);
+        }
+        this.code.pushObject({ type: obj.type, length: 4 });
+
+        this.code.callBuiltin('setArray');
+
+        this.code.comment(`Fin de Set`);
     }
 }

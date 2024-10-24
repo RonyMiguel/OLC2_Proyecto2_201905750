@@ -352,6 +352,53 @@ export const UpperCase = (code) => {
     code.comment('Fin de conversión a mayusculas')
 }
 
+export const copyArray = (code) => {
+    // A0 -> dirección en heap de la cadena a copiar
+    // A1 -> dirección en heap de la cadena destino
+    code.comment('Copiando cadena')
+    code.li(r.T0, 1112)     // Finalizacion de array
+    
+    code.addLabel('loopCopy')
+    code.lw(r.T1, r.A0)     // Copiar el elemento
+    code.beq(r.T1, r.T0, 'endCopy') // Si el elemento es nulo, terminar
+    code.pushToHeap(r.T1)   // Guardar el elemento en el heap
+    code.addi(r.A0, r.A0, 4) // Mover el puntero de la cadena
+    code.j('loopCopy')
+    code.addLabel('endCopy')
+
+    code.comment('Fin de copia de cadena')
+}
+
+export const getArray = (code) => {
+    // A0 -> dirección en heap del array referenciado
+    // T0 -> posicion del heap a devolver
+
+    code.comment('Obteniendo elemento indicado')
+    code.li(r.T1, 4);           // Offset de cada posicion del array
+    code.mul(r.T0, r.T0, r.T1)  // Calcular la posición con offset en el heap
+    code.add(r.A0, r.A0, r.T0)  // Sumar el offset a la direccion del array
+    code.lw(r.T0, r.A0)         // Obtener el valor de la posicion
+    code.comment('Fin de obtención de elemento')
+}
+
+export const setArray = (code, isFloat) => {
+    // A0 -> dirección en heap del array referenciado
+    // T5 -> posicion del heap a modificar
+    // T0 -> valor a guardar
+
+    code.comment('Obteniendo elemento indicado')
+    code.li(r.T1, 4);           // Offset de cada posicion del array
+    code.mul(r.T5, r.T5, r.T1)  // Calcular la posición con offset en el heap
+    code.add(r.A0, r.A0, r.T5)  // Sumar el offset a la direccion del array
+    if (isFloat) {
+        code.fsw(f.FT0, r.A0)         // Guardar el valor en la posicion
+    }else{
+        code.sw(r.T0, r.A0)         // Guardar el valor en la posicion
+    }
+    
+    code.comment('Fin de obtención de elemento')
+}
+
 export const builtins = {
     concatString: concatString,
     printBool: printBool,
@@ -363,5 +410,8 @@ export const builtins = {
     FloatToString: FloatToString,
     LowerCase: LowerCase,
     UpperCase: UpperCase,
-    compareStrings: compareStrings
+    copyArray: copyArray,
+    compareStrings: compareStrings,
+    getArray: getArray,
+    setArray: setArray
 }

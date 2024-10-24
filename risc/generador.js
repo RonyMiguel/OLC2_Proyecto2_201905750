@@ -109,6 +109,16 @@ export class Generador {
         this.sw(rd, r.SP)
     }
 
+    pushToHeap(rd = r.T0){
+        this.sw(rd, r.HP);
+        this.addi(r.HP, r.HP, 4);
+    }
+
+    pushFloatToHeap(rd = r.FT0){
+        this.fsw(rd, r.HP);
+        this.addi(r.HP, r.HP, 4);
+    }
+
     pushFloat(rd = r.FT0){
         this.addi(r.SP, r.SP, -4) // Decrementa el puntero de pila 4 bytes = 32 bits
         this.fsw(rd, r.SP)
@@ -464,7 +474,6 @@ main:
 
     getFrameLocal(index){
         const frameRelativeLocal = this.objectStack.filter(obj => obj.local === true);
-        console.log(frameRelativeLocal)
         return frameRelativeLocal[index];
     }
 }
