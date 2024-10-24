@@ -951,6 +951,14 @@ export class CompilerVisitor extends BaseVisitor {
         */
         this.code.comment(`Declaracion de Array: ${node.id}`);
         // Guardamos la direccion en heap para el array
+        // Asegurarse que el heap este en un multiplo de 4
+        this.code.li(r.T1, 4);
+        this.code.li(r.T0, 4);
+        this.code.rem(r.T0, r.HP, r.T0);
+        this.code.sub(r.T0, r.T1, r.T0);
+        this.code.add(r.HP, r.HP, r.T0);
+
+
         this.code.push(r.HP);
         this.code.pushObject({ type: node.tipo, length: 4})
         this.code.tagObject(node.id);
@@ -999,6 +1007,7 @@ export class CompilerVisitor extends BaseVisitor {
 
             node.exp.accept(this);
             this.code.popObject(r.A0);
+
             this.code.callBuiltin('copyArray');
 
         }else{
