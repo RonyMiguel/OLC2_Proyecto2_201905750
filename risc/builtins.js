@@ -495,6 +495,17 @@ export const intJoin = (code) => {
     code.comment('Fin de unión de arrays')
 }
 
+export const printError = (code) => {
+    code.comment('Imprimiendo error')
+    code.la(r.A0, 'errorDiv0')
+    code.li(r.A7, 4)
+    code.ecall()
+    code.li(r.A0, 10);
+    code.li(r.A7, 11)
+    code.ecall()
+    code.comment('Fin de impresión de error')
+}
+
 
 export const builtins = {
     concatString: concatString,
@@ -513,5 +524,6 @@ export const builtins = {
     setArray: setArray,
     IndexOf: IndexOf,
     ArrayLength: ArrayLength,
-    intJoin: intJoin
+    intJoin: intJoin,
+    printError: printError
 }

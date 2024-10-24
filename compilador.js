@@ -207,6 +207,7 @@ export class CompilerVisitor extends BaseVisitor {
                 this.code.div(r.T0, r.T0, r.T1);
                 this.code.j(endDiv);
                 this.code.addLabel(errorDiv);
+                this.code.callBuiltin('printError');
                 this.code.li(r.T0, 1111);
                 this.code.addLabel(endDiv);
                 this.code.push(r.T0);
@@ -563,6 +564,12 @@ export class CompilerVisitor extends BaseVisitor {
      * @type {BaseVisitor['visitFor']}
      */
     visitFor(node){
+        /*
+            node.cond
+            node.inc
+            node.init
+            node.stmt
+        */
         this.code.comment('Inicio de For');
 
         const startForLabel = this.code.getLabel();
@@ -777,6 +784,8 @@ export class CompilerVisitor extends BaseVisitor {
         instruccionesDeDeclaracionDeFuncion.forEach(instruccion => {
             this.code.instruccionesDeFunciones.push(instruccion);
         });
+
+        this.insideFunction = false;
     }
 
 
@@ -1187,4 +1196,61 @@ export class CompilerVisitor extends BaseVisitor {
         }
         
     }
+
+
+    /**
+     * @type {BaseVisitor['visitForEach']}
+     */
+    visitForEach(node){
+        /*
+        node.exp -> ReferenciaVariable a Array
+        node.stmt -> Bloque de instrucciones
+        node.id -> id de la variable que se va a iterar
+        node.tipo -> tipo de la variable que se va a iterar
+        */
+        
+
+        const newFor = new nodos.For({
+            init: new nodos.Declaracion({
+                tipo: 'int',
+                id: 'i',
+                exp: new nodos.Nativo({
+                    tipo: 'int',
+                    valor: 0
+                })
+            }),
+            cond: new nodos.OperacionBinaria({
+                op: '<',
+                izq: new nodos.ReferenciaVariable({ id: 'i' }),
+                der: new nodos.FuncArray({
+                    objetivo: node.exp,
+                    id: 'length'
+                })
+            }),
+            inc: new nodos.Asignacion({
+                asgn: new nodos.OperacionBinaria({
+                    op: '+',
+                    izq: new nodos.ReferenciaVariable({ id: 'i' }),
+                    der: new nodos.Nativo({ tipo: 'int', valor: 1 })
+                }),
+                id: 'i'
+            }),
+            stmt: new nodos.Bloque({
+                dcls: [
+                    new nodos.Declaracion({
+                        tipo: node.tipo,
+                        id: node.id,
+                        exp: new nodos.Get({
+                            objetivo: node.exp,
+                            propiedad: new nodos.ReferenciaVariable({ id: 'i' })
+                        })
+                    }),
+                    ...node.stmt.dcls
+                ],
+            })
+        });
+        console.log(newFor)
+        newFor.accept(this);
+    }
+
 }

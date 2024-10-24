@@ -292,7 +292,7 @@ export class Generador {
 
         this.objectStack.push({
             ...object,
-            depth: object.depth
+            depth: this.depth
         });
     }
 
@@ -400,6 +400,7 @@ export class Generador {
         })
         return `
 .data
+errorDiv0:      .string      "Error: Division por cero"
 nullStr:        .string      "null"
 trueStr:        .string      "true"
 falseStr:       .string      "false"
