@@ -399,6 +399,103 @@ export const setArray = (code, isFloat) => {
     code.comment('Fin de obtención de elemento')
 }
 
+export const IndexOf = (code) => {
+    // A0 -> dirección en heap del array a analizar
+    // T0 -> elemento a buscar
+
+    code.comment('Buscando elemento en el array')
+    code.li(r.T1, 0);           // Posicion del elemento
+    code.li(r.T2, 1112);        // Fin del array
+    code.addLabel('loopIndexOf')
+    code.lw(r.T3, r.A0)         // Obtener el elemento del array
+    code.beq(r.T3, r.T2, 'notFound') // Si el elemento es nulo, terminar
+    code.beq(r.T3, r.T0, 'found') // Si el elemento es igual, terminar
+    code.addi(r.T1, r.T1, 1)    // Aumentar la posicion
+    code.addi(r.A0, r.A0, 4)    // Mover el puntero del array
+    code.j('loopIndexOf')
+    code.addLabel('notFound')
+    code.li(r.T1, -1);          // Posicion del elemento
+    code.addLabel('found')
+    code.comment('Fin de búsqueda de elemento')
+}
+
+export const ArrayLength = (code) => {
+    // A0 -> dirección en heap del array a analizar
+    // T0 -> longitud del array
+
+    code.comment('Obteniendo longitud del array')
+    code.li(r.T0, 0);           // Longitud del array
+    code.li(r.T1, 1112);        // Fin del array
+    code.addLabel('loopArrayLength')
+    code.lw(r.T2, r.A0)         // Obtener el elemento del array
+    code.beq(r.T2, r.T1, 'endArrayLength') // Si el elemento es nulo, terminar
+    code.addi(r.T0, r.T0, 1)    // Aumentar la longitud
+    code.addi(r.A0, r.A0, 4)    // Mover el puntero del array
+    code.j('loopArrayLength')
+    code.addLabel('endArrayLength')
+    code.comment('Fin de obtención de longitud')
+}
+
+export const intJoin = (code) => {
+    // A0 -> dirección en heap del array a analizar
+
+    code.comment('Uniendo arrays')
+    
+    code.addLabel('loopJoin')
+    code.lw(r.T0, r.A0)         // Obtener el elemento del array
+    code.li(r.T1, 1112);        // Fin del array
+    code.beq(r.T1, r.T0, 'endJoin') // Si el elemento es nulo, terminar
+
+    // Convertir el entero a cadena
+    code.add(r.T1, r.T0, r.ZERO);  // Copiar el valor a otro registro
+    code.li(r.T2, 10);      // Base para convertir a decimal
+    code.li(r.T3, 0);      // Tamano de la cadena
+
+    code.addLabel('IntGetSizeJ')
+    code.div(r.T1, r.T1, r.T2); // Dividir el valor entre 10
+    code.addi(r.T3, r.T3, 1);   // Aumentar el tamaño de la cadena
+    code.beq(r.T1, r.ZERO, 'IntConvertJ') // Si el resultado es 0, terminar
+    code.j('IntGetSizeJ')
+
+    code.addLabel('IntConvertJ')
+    code.addi(r.T3, r.T3, 1);   // Aumentar el tamaño de la cadena con el caracter nulo y la siguiente posicion libre
+    code.add(r.HP, r.HP, r.T3); // Mover el puntero de heap hasta el final de la cadena
+    code.addi(r.T4, r.HP, -1); // Copia de la direccion del heap quedando en la posicion del caracter nulo
+    code.sb(r.ZERO, r.T4);     // Agregar el caracter nulo al final
+    code.addi(r.T4, r.T4, -1);      // Mover el puntero de la cadena
+
+    code.addLabel('loopIntJ')
+    code.div(r.T1, r.T0, r.T2);     // Dividir el valor entre 10
+    code.mul(r.T3, r.T1, r.T2);     // Multiplicar el resultado por 10
+    code.sub(r.T3, r.T0, r.T3);     // Obtener el sobrante
+    code.addi(r.T3, r.T3, 48);      // Convertir el residuo a caracter
+    code.sb(r.T3, r.T4);             // Guardar el caracter en la cadena
+    code.addi(r.T4, r.T4, -1);      // Mover el puntero de la cadena
+    code.addi(r.T0, r.T1, 0);       // Copiar el resultado de la division
+    code.beq(r.T0, r.ZERO, 'endIntJ') // Si el resultado es 0, terminar
+    code.j('loopIntJ')
+    code.addLabel('endIntJ')
+    // Fin conversión a cadena
+
+
+
+    code.addi(r.HP, r.HP, -1)    // Retroceder el puntero del heap
+    code.li(r.T1, 44);          // Agregar coma
+    code.sb(r.T1, r.HP)         // Guardar el caracter en el heap
+    code.addi(r.HP, r.HP, 1)    // Aumentar el puntero del heap
+    code.li(r.T1, 32);          // Agregar coma
+    code.sb(r.T1, r.HP)         // Guardar el caracter en el heap
+    code.addi(r.HP, r.HP, 1)    // Aumentar el puntero del heap
+    code.addi(r.A0, r.A0, 4)    // Mover el puntero del array
+    code.j('loopJoin')
+    code.addLabel('endJoin')
+    code.addi(r.HP, r.HP, -2)    // Retroceder el puntero del heap
+    code.sb(r.ZERO, r.HP)       // Agregar el caracter nulo al final
+    code.addi(r.HP, r.HP, 1)    // Aumentar el puntero del heap
+    code.comment('Fin de unión de arrays')
+}
+
+
 export const builtins = {
     concatString: concatString,
     printBool: printBool,
@@ -413,5 +510,8 @@ export const builtins = {
     copyArray: copyArray,
     compareStrings: compareStrings,
     getArray: getArray,
-    setArray: setArray
+    setArray: setArray,
+    IndexOf: IndexOf,
+    ArrayLength: ArrayLength,
+    intJoin: intJoin
 }

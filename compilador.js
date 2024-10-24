@@ -1130,4 +1130,61 @@ export class CompilerVisitor extends BaseVisitor {
 
         this.code.comment(`Fin de Set`);
     }
+
+    /**
+     * @type {BaseVisitor['visitFuncArray']}
+     */
+    visitFuncArray(node){
+        /*
+            node.objetivo
+            node.id
+        */
+
+        // Comenzamos por obtener la direccion array que se quiere buscar
+        node.objetivo.accept(this);
+        this.code.popObject(r.A0);
+
+        if (node.id === "join"){
+            /*
+            join
+            Objetivo -> array a unir
+            id -> join, ya no se usa
+            */ 
+
+            // Guardamos la direccion del heap en la que se guardara el string
+            this.code.push(r.HP);
+            this.code.pushObject({ type: 'string', length: 4 });
+
+            this.code.callBuiltin('intJoin');   // Devuelve la direccion del heap en T0
+            
+        }else if (node.id === "length"){
+            /*
+            length
+            Objetivo -> array a medir
+            id -> length, ya no se usa
+            */ 
+            
+            this.code.callBuiltin('ArrayLength');   // Devuelve la longitud en T0
+
+            this.code.push(r.T0);
+            this.code.pushObject({ type: 'int', length: 4 });
+
+        }else{
+            /*
+            indexOf
+            Objetivo -> array a buscar
+            id -> valor a buscar
+            */ 
+
+            // Obtenemos el valor que se quiere buscar
+            node.id.accept(this);
+            this.code.popObject(r.T0);
+
+            this.code.callBuiltin('IndexOf');   // Devuelve el indice en T1
+
+            this.code.push(r.T1);
+            this.code.pushObject({ type: 'int', length: 4 });
+        }
+        
+    }
 }
