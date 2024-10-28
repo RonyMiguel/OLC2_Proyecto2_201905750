@@ -25,7 +25,6 @@ export class FrameVisitor extends BaseVisitor {
             offset: this.baseOffset + this.localSize,
             local: true,
         });
-        console.log(node.id+ " offset "+(this.baseOffset + this.localSize));
         this.localSize += 1;
     }
     visitAsignacion(node) { }

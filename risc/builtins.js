@@ -113,6 +113,7 @@ export const atoi = (code) => {
     code.addi(r.A0, r.A0, 1)
     code.j('parseChar')
     code.addLabel('errorParse')
+    printConvertionError(code)
     code.addi(r.T0, r.ZERO, 1111);
     code.addLabel('endParse')
     code.comment('Fin de conversión a entero')
@@ -155,7 +156,8 @@ export const atof = (code) => {
     code.j('Ldecimal')
     code.addLabel('Lerror')
     code.addi(r.T0, r.ZERO, 1111);
-    code.fcvtsw(f.FT0, r.T0);   // Guardar la parte entera en FT0
+    printConvertionError(code)
+    //code.fcvtsw(f.FT0, r.T0);   // Guardar la parte entera en FT0
     code.j('finFloat')
     code.addLabel('LendFloat')
     code.fcvtsw(f.FT1, r.T0);       // Guardar la parte decimal en FT1
@@ -506,6 +508,16 @@ export const printError = (code) => {
     code.comment('Fin de impresión de error')
 }
 
+export const printConvertionError = (code) => {
+    code.comment('Imprimiendo error')
+    code.la(r.A0, 'errorConv')
+    code.li(r.A7, 4)
+    code.ecall()
+    code.li(r.A0, 10);
+    code.li(r.A7, 11)
+    code.ecall()
+    code.comment('Fin de impresión de error')
+}
 
 export const builtins = {
     concatString: concatString,

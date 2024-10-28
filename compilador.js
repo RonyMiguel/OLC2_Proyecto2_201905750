@@ -14,7 +14,7 @@ export class CompilerVisitor extends BaseVisitor {
         this.breakLabel = null;
         this.returnLabel = null;
 
-        this.functionMetadata = [];
+        this.functionMetadata = {};
         this.insideFunction = false;
         this.frameDclIndex = 0;
     }
@@ -815,7 +815,6 @@ export class CompilerVisitor extends BaseVisitor {
             node.args[0].accept(this);
             const isFloat = this.code.getTopObject().type === 'float';
             const obj = this.code.popObject(isFloat ? f.FT0 : r.T0);
-            console.log(obj)
             if (obj.type === 'int') {
                 this.code.callBuiltin('IntToString');
             }else if (obj.type === 'boolean') {
@@ -864,13 +863,12 @@ export class CompilerVisitor extends BaseVisitor {
 
         const etiquetaRetornoLlamada = this.code.getLabel();
 
-        // 1. Guardar los argumentos
-        node.args.forEach((arg, index) => {
+        // 1. Guardas los argumentos
+        this.code.addi(r.SP, r.SP, -4 * 2); // ! Revisar el offset
+        node.args.forEach((arg) => {
             arg.accept(this);
-            this.code.popObject(r.T0);
-            this.code.addi(r.T1, r.SP, -4 * (3 + index));
-            this.code.sw(r.T0, r.T1);
         });
+        this.code.addi(r.SP, r.SP, 4 * (node.args.length + 2));
 
         // Calcular la direccion del nuevo FP en T1
         this.code.addi(r.T1, r.SP, -4);
@@ -882,16 +880,14 @@ export class CompilerVisitor extends BaseVisitor {
         // Guardar el FP
         this.code.push(r.FP);
         this.code.addi(r.FP, r.T1, 0);
-
-        // Colocar el SP al final del frame
-        this.code.addi(r.SP, r.SP, - (4 * (node.args.length))); // ! Revisar el offset
+        const frameSize = this.functionMetadata[nombreFuncion].frameSize
+        this.code.addi(r.SP, r.SP, -(frameSize - 2) * 4)
 
         // Saltar a la funcion
         this.code.j(nombreFuncion);
         this.code.addLabel(etiquetaRetornoLlamada);
 
         // Recuperar el valor de retorno
-        const frameSize = this.functionMetadata[nombreFuncion].frameSize;
         const returnSize = frameSize - 1;
         this.code.addi(r.T0, r.FP, -returnSize * 4);
         const isFloat = this.functionMetadata[nombreFuncion].returnType === "float";
@@ -906,7 +902,7 @@ export class CompilerVisitor extends BaseVisitor {
         this.code.lw(r.FP, r.T0);
 
         // Regresar el SP al contexto de ejecucion anterior
-        this.code.addi(r.SP, r.SP, (frameSize-1) * 4);
+        this.code.addi(r.SP, r.SP, frameSize * 4);
 
         if (isFloat) {
             this.code.pushFloat(f.FA0);
@@ -1249,7 +1245,6 @@ export class CompilerVisitor extends BaseVisitor {
                 ],
             })
         });
-        console.log(newFor)
         newFor.accept(this);
     }
 

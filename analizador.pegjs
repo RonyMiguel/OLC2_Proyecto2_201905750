@@ -54,7 +54,7 @@ VarDcl = tipo:Tipos _ id:Identificador _ ";" _{ return crearNodo("declaracion", 
         / tipo:Identificador _ id:Identificador _ "=" _ exp:Expresion _ ";" _ { return crearNodo("declaracion", {tipo, id, exp}) }
         / tipo:Identificador _ id:Identificador _ ";" _ { return crearNodo("declaracion", {tipo, id, exp: null}) }
 
-FuncDcl = tipo:Tipos _ id:Identificador _ "(" _ params:Parametros? _ ")" _ bloque:Bloque { return crearNodo('dclFunc', { tipo, id, params: params || [], bloque }) }
+FuncDcl = tipo:Tipos _ id:Identificador _ "(" _ params:Parametros? _ ")" _ bloque:Bloque _ { return crearNodo('dclFunc', { tipo, id, params: params || [], bloque }) }
 
 StructDcl = "struct" _ id:Identificador _ "{" _ dcls:VarDcl+ _ "}" _ ";" { return crearNodo('dclStruct', { id, dcls }) }
 

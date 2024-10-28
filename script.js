@@ -2,6 +2,7 @@ import * as monaco from 'https://cdn.jsdelivr.net/npm/monaco-editor@0.50.0/+esm'
 
 import { parse } from './analizador.js'
 import { CompilerVisitor } from './compilador.js';
+import { InterpreterVisitor } from './interprete.js'
 
 const btn = document.getElementById('btn-ejecutar')
 
@@ -125,9 +126,15 @@ btn.addEventListener('click', () => {
     try {
         const sentencias = parse(codigoFuente)
         console.log(sentencias);
-        const interprete = new CompilerVisitor()
+        const interprete = new InterpreterVisitor()
+        const compilador = new CompilerVisitor()
 
         sentencias.forEach(sentencia => {
+            try {
+                sentencia.accept(compilador);
+            } catch (error) {
+                console.log(error);
+            }
             try {
                 sentencia.accept(interprete);
             } catch (error) {
@@ -143,8 +150,8 @@ btn.addEventListener('click', () => {
                 console.log(error);
             }
         });
-        consola.setValue(interprete.code.toString())
-        /*
+        consola.setValue(compilador.code.toString())
+        
         errores = interprete.errores
         
         function sonIguales(obj1, obj2) {
@@ -160,7 +167,7 @@ btn.addEventListener('click', () => {
 
         const unicos = obtenerObjetosUnicos(interprete.tablaSimbolos);
         tablaSimbolos = unicos;
-        */
+        
     } catch (error) {
         console.log(error);
         consola.setValue(error.message + ' at line ' + error.location.start.line + ' column ' + error.location.start.column)

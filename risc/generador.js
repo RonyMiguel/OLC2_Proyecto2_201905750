@@ -400,6 +400,7 @@ export class Generador {
         })
         return `
 .data
+errorConv:     .string      "Error: Conversion invalida"
 errorDiv0:      .string      "Error: Division por cero"
 nullStr:        .string      "null"
 trueStr:        .string      "true"
